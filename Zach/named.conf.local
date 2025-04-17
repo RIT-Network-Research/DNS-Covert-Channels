@@ -1,0 +1,24 @@
+//
+// Do any local configuration here
+//
+
+// Consider adding the 1918 zones here, if they are not used in your
+// organization
+//include "/etc/bind/zones.rfc1918";
+
+zone "netres.com" {
+	type master;
+	file "/etc/bind/db.netres.com";
+};
+
+zone "exfil.netres.com." {
+	type forward;
+	forwarders { 127.0.0.1 port 53535; };
+};
+
+zone "c2.netres.com." {
+	type master;
+	file "/etc/bind/db.c2.netres.com";
+	allow-update { any; };
+};
+
