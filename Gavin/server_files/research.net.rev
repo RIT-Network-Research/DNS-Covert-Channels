@@ -1,0 +1,19 @@
+;
+; BIND Reverse Lookup Zone for 192.168.47.0/24
+;
+$TTL 604800
+@   IN  SOA  research.net. root.research.net. (
+           2     ; Serial (Increment this!)
+      604800     ; Refresh
+       86400     ; Retry
+     2419200     ; Expire
+      604800 )   ; Negative Cache TTL
+
+; Name Server for Reverse Zone
+@	IN	NS	dns-serv.research.net.
+dns-serv	IN	A	192.168.47.101
+dns-client	IN	A	192.168.47.50
+
+; PTR Records (Reverse Mappings)
+50	IN	PTR	dns-client.research.net.
+101	IN	PTR	dns-serv.research.net.
