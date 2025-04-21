@@ -1,0 +1,9 @@
+zone "research.net" IN {
+        type master;
+        file "/etc/bind/zones/research.net";
+	allow-update { any; };
+};
+zone "1.150.10.in-addr.arpa" IN {
+        type master;
+	file "/etc/bind/zones/research.net.rev";
+};
