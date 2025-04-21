@@ -1,0 +1,14 @@
+//Allow only LAN traffic from 192.168.47.0-.255
+acl LAN{
+192.168.47.0/24;
+};
+
+options {
+	directory "/var/cache/bind";
+	allow-query { localhost; LAN; }; // allow queries from localhost and 192.168.2.0-192.168.2.255
+        forwarders { 1.1.1.1; }; // use CloudFlare 1.1.1.1 DNS as a forwarder
+        recursion yes;	
+	dnssec-validation auto;
+	listen-on-v6 { any; };
+	listen-on port 53 { any; };
+};
