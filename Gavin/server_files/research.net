@@ -1,0 +1,25 @@
+$ORIGIN .
+$TTL 604800	; 1 week
+research.net		IN SOA	research.net. root.research.net. (
+				85         ; serial
+				604800     ; refresh (1 week)
+				86400      ; retry (1 day)
+				2419200    ; expire (4 weeks)
+				604800     ; minimum (1 week)
+				)
+			NS	dns-serv.research.net.
+			TXT	"Testing"
+$ORIGIN research.net.
+covertmessage1		TXT	"aG9zdCBnb29nbGUuY29t"
+$TTL 60	; 1 minute
+covertmessage2		TXT	""
+$TTL 604800	; 1 week
+dns-client		A	192.168.47.50
+			TXT	"I am the BIND9 Client"
+dns-serv		A	192.168.47.101
+			TXT	"I am the BIND9 Server"
+			AAAA	::1
+$TTL 60	; 1 minute
+response2.research.net	TXT	"U2VydmVyOgkJMTAuMTUwLjEuMzMKQWRkcmVzczoJMTAuMTUwLjEuMzMjNTMKCioqKiBDYW4ndCBmaW5kIHJlc2VhcmNoLm5ldDogTm8gYW5zd2VyCgo="
+$TTL 604800	; 1 week
+respond2		TXT	""
